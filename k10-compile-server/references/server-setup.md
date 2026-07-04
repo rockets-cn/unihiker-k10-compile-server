@@ -84,9 +84,10 @@ bash k10-compile-server/scripts/compile-project.sh \
 
 ### PlatformIO Cache
 
-PlatformIO downloads toolchains to `~/.platformio`. The Docker image pre-installs
-the K10 platform during build, so a fresh container can compile without an empty
-volume hiding the baked-in toolchain.
+PlatformIO downloads toolchains to `~/.platformio`. Docker persists this
+directory in the named volume `pio-data`, so `docker compose down && docker
+compose up -d` keeps the downloaded K10 toolchain. A brand-new volume may need
+to download toolchains on the first compile.
 
 For native installs, PlatformIO manages this automatically.
 

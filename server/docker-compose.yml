@@ -8,6 +8,8 @@ services:
       # Mount certs for HTTPS (create self-signed or use your own)
       - ./cert.pem:/app/cert.pem:ro
       - ./key.pem:/app/key.pem:ro
+      # Persist PlatformIO packages/toolchains across container restarts
+      - pio-data:/root/.platformio
     environment:
       - K10_SSL_CERT=/app/cert.pem
       - K10_SSL_KEY=/app/key.pem
@@ -20,3 +22,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+volumes:
+  pio-data:

@@ -130,14 +130,15 @@ sudo apt install docker-compose-plugin
 ```
 
 ### First Docker build takes a long time
-The Docker image downloads PlatformIO and the UniHiker K10 toolchain.
-This is a one-time cost — subsequent builds are fast thanks to Docker layer
-caching in Docker layers.
+The Docker image installs PlatformIO and the UniHiker K10 platform. The first
+compile with a brand-new `pio-data` volume may still download toolchain packages;
+after that, `docker compose down && docker compose up -d` reuses the cache.
 
 ### PlatformIO cache issues
-If the Docker build cache gets stale, rebuild without cache:
+If the PlatformIO cache gets stale or corrupted, reset the named volume:
 ```bash
-docker compose build --no-cache
+docker compose down
+docker volume rm k10-compile-server_pio-data
 docker compose up -d
 ```
 
