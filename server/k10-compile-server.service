@@ -1,0 +1,21 @@
+[Unit]
+Description=K10 Compile Server - PlatformIO compilation for UniHiker K10
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=__INSTALL_DIR__
+ExecStart=__PYTHON_BIN__ -m uvicorn main:app --host 0.0.0.0 --port 8900 --log-level info --ssl-certfile __INSTALL_DIR__/cert.pem --ssl-keyfile __INSTALL_DIR__/key.pem
+Restart=always
+RestartSec=5
+PrivateTmp=no
+StandardOutput=journal
+StandardError=journal
+LimitNOFILE=65536
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

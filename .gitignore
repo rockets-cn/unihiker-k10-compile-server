@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+
+# PlatformIO build artifacts
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# SSL certs (regenerate on deploy)
+*.pem
+*.crt
+*.key
+
+# Logs
+*.log
+/tmp/
+
+# Docker
+npm/
+!server/npm/
+static/
+!server/static/
+stub_flasher/
+!server/stub_flasher/
+
+# Keep the skill dirs but not their build artifacts
+k10-compile-server/**/.pio/
+
+# Config
+.claude/

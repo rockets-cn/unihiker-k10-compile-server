@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  k10-compile-server:
+    build: .
+    container_name: k10-compile-server
+    ports:
+      - "8900:8900"
+    volumes:
+      # Mount certs for HTTPS (create self-signed or use your own)
+      - ./cert.pem:/app/cert.pem:ro
+      - ./key.pem:/app/key.pem:ro
+      # Persist PlatformIO data (toolchain cache)
+      - pio-data:/root/.platformio
+    environment:
+      - K10_SSL_CERT=/app/cert.pem
+      - K10_SSL_KEY=/app/key.pem
+      - K10_STATIC_DIR=/app/static
+    restart: unless-stopped
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "curl", "-sk", "https://localhost:8900/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  pio-data:
