@@ -42,8 +42,8 @@ Upload a .zip archive containing the entire project.
 ### `POST /api/compile/files`
 
 Upload individual project files. The server will find `platformio.ini`,
-ensure source files are in `src/`, and auto-generate `partitions.csv` if
-needed.
+ensure source files are in `src/`, and return an error if `platformio.ini`
+references `partitions.csv` but the file is missing.
 
 **Request:** `multipart/form-data`
 - `files`: one or more files, field name repeated

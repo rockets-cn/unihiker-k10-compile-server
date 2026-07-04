@@ -51,7 +51,7 @@ curl -sk https://localhost:8900/api/build/{build_id}/status
 或用客户端脚本：
 
 ```bash
-bash ../scripts/compile-project.sh \
+bash ../k10-compile-server/scripts/compile-project.sh \
   --server https://localhost:8900 \
   --dir ../examples/Blink \
   --wait --web-serial

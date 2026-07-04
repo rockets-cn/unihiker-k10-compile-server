@@ -8,7 +8,7 @@ Deploy your own K10 Compile Server.
 |-----------|----------------|
 | Python | 3.10+ |
 | PlatformIO Core | `pip install platformio` |
-| DFRobot UniHiker K10 Arduino | `pio platform install https://github.com/DFRobot/UniHiker_K10_Arduino.git` |
+| DFRobot UniHiker K10 Arduino | `pio platform install https://github.com/DFRobot/platform-unihiker.git` |
 | OpenSSL | For self-signed HTTPS cert (Web Serial requires HTTPS) |
 | Docker + Compose | Optional, for containerized deployment |
 | curl, zip, unzip | Optional, for CLI usage |
@@ -80,13 +80,13 @@ bash k10-compile-server/scripts/compile-project.sh \
 | `K10_REDIRECT_PORT` | `8080` | HTTP→HTTPS redirect port |
 | `K10_COMPILE_TIMEOUT` | `300` | Compile timeout (seconds) |
 | `K10_MAX_CONCURRENT` | `2` | Max parallel compilations |
-| `K10_BUILD_TTL` | `300` | How long build results are kept (seconds) |
+| `K10_BUILD_TTL` | `1800` | How long build results are kept (seconds) |
 
 ### PlatformIO Cache
 
-PlatformIO downloads toolchains to `~/.platformio`. For Docker, this is
-persisted via a named volume (`pio-data`) so rebuilds don't re-download
-gigabytes of toolchains.
+PlatformIO downloads toolchains to `~/.platformio`. The Docker image pre-installs
+the K10 platform during build, so a fresh container can compile without an empty
+volume hiding the baked-in toolchain.
 
 For native installs, PlatformIO manages this automatically.
 

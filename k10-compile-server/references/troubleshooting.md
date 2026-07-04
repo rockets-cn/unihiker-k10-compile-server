@@ -9,7 +9,7 @@ Common issues and their solutions.
 sudo lsof -i :8900  # Find the process
 sudo kill <PID>     # Kill it
 # Or use a different port:
-K10_COMPILE_PORT=8901 python3 -m uvicorn main:app --host 0.0.0.0 --port 8901
+K10_COMPILE_PORT=8901 python3 main.py
 ```
 
 ### "pio: command not found"
@@ -23,10 +23,10 @@ python3 -m platformio run --version
 ### "K10 toolchain not ready"
 ```bash
 # Install the DFRobot UniHiker K10 Arduino platform
-pio platform install https://github.com/DFRobot/UniHiker_K10_Arduino.git
+pio platform install https://github.com/DFRobot/platform-unihiker.git
 
 # Or if pio is in a venv:
-python3 -m platformio platform install https://github.com/DFRobot/UniHiker_K10_Arduino.git
+python3 -m platformio platform install https://github.com/DFRobot/platform-unihiker.git
 ```
 
 ## Compilation Fails
@@ -132,20 +132,19 @@ sudo apt install docker-compose-plugin
 ### First Docker build takes a long time
 The Docker image downloads PlatformIO and the UniHiker K10 toolchain.
 This is a one-time cost — subsequent builds are fast thanks to Docker layer
-caching and the `pio-data` volume.
+caching in Docker layers.
 
-### Permission errors on PlatformIO cache volume
+### PlatformIO cache issues
+If the Docker build cache gets stale, rebuild without cache:
 ```bash
-# If running as non-root, ensure the volume is writable
-docker compose down
-docker volume rm k10-compile-server_pio-data
+docker compose build --no-cache
 docker compose up -d
 ```
 
 ## General
 
 ### Build results expire too quickly
-Default TTL is 300 seconds (5 minutes). Increase:
+Default TTL is 1800 seconds (30 minutes). Adjust if needed:
 
 ```bash
 export K10_BUILD_TTL=1800  # 30 minutes

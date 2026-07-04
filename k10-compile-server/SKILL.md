@@ -58,7 +58,7 @@ and click **浏览器烧录**.
 Or pass `--web-serial` to the script to auto-open the URL:
 
 ```bash
-bash scripts/compile-project.sh \
+bash k10-compile-server/scripts/compile-project.sh \
   --server "$COMPILE_SERVER" \
   --dir my-project/ \
   --wait --web-serial

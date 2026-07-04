@@ -35,6 +35,7 @@ MAX_LOG_LENGTH = 50000
 BUILD_RESULT_TTL = int(os.getenv("K10_BUILD_TTL", "1800"))
 CLEANUP_INTERVAL = 120
 FLASH_PORT = os.getenv("K10_FLASH_PORT", "")  # e.g. /dev/ttyUSB0
+REDIRECT_PORT = int(os.getenv("K10_REDIRECT_PORT", "8080"))
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("k10-compile")
@@ -1002,12 +1003,12 @@ if __name__ == "__main__":
             def log_message(self, *a): pass
 
         def start_redirect():
-            httpd = HTTPServer(("0.0.0.0", 8080), RedirectHandler)
+            httpd = HTTPServer(("0.0.0.0", REDIRECT_PORT), RedirectHandler)
             httpd.serve_forever()
 
         import threading
         threading.Thread(target=start_redirect, daemon=True).start()
-        print(f"HTTP  redirect: http://{HOST}:8080 → https://{HOST}:{PORT}")
+        print(f"HTTP  redirect: http://{HOST}:{REDIRECT_PORT} → https://{HOST}:{PORT}")
 
         print(f"HTTPS server on https://{HOST}:{PORT}")
         uvicorn.run(app, host=HOST, port=PORT, log_level="info",
