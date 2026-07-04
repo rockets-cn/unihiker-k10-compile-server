@@ -409,24 +409,35 @@ bd.addEventListener('click',()=>{
 bf.addEventListener('click',async()=>{
   if(!fwData&&!fwManifest)return;
   if(!navigator.serial){show('error',t.webSerialUnsupported);return}
+  if(window.__k10WebSerialBusy)return;
+  window.__k10WebSerialBusy=true;
   bf.disabled=true;
   try{
     const port=await navigator.serial.requestPort();
+    try{if(port&&(port.readable||port.writable))await port.close()}catch(closeError){console.warn('关闭已打开的串口失败，可忽略:',closeError)}
     show('loading',t.connectingK10);
-    const{ESPLoader}=await import('/static/esptool-js.mjs');
-    const el=new ESPLoader({port,baudrate:115200});
-    const origReadFlash=el.readFlashId;
-    el.readFlashId=async function(){try{return await origReadFlash.call(this)}catch(e){console.warn('跳过 readFlashId:',e);return 0}};
+    const {ESPLoader,Transport}=await import('/static/esptool-js.mjs');
+    let transport=new Transport(port,true);
+    let el=new ESPLoader({transport,baudrate:115200});
+    function patchLoader(loader){
+      const origReadFlash=loader.readFlashId;
+      loader.readFlashId=async function(){try{return await origReadFlash.call(this)}catch(e){console.warn('跳过 readFlashId:',e);return 0}};
+    }
+    patchLoader(el);
     show('loading','⏳ ' + t.autoBoot);
     try {
       await el.main('default_reset');
     } catch (autoResetError) {
-      console.warn('自动进入烧录模式失败，改用手动 BOOT/RST:', autoResetError);
-      show('loading','⏳ ' + t.manualBoot);
-      await new Promise(r=>setTimeout(r,4000));
-      await el.main('no_reset');
-    }
-
+    console.warn('自动进入烧录模式失败，改用手动 BOOT/RST:', autoResetError);
+    try{if(transport&&typeof transport.disconnect==='function')await transport.disconnect()}catch(e){console.warn('自动 reset 失败后断开 transport 失败，可忽略:',e)}
+    try{if(port&&(port.readable||port.writable))await port.close()}catch(e){console.warn('自动 reset 失败后关闭串口失败，可忽略:',e)}
+    transport=new Transport(port,true);
+    el=new ESPLoader({transport,baudrate:115200});
+    patchLoader(el);
+    show('loading','⏳ ' + t.manualBoot);
+    await new Promise(r=>setTimeout(r,4000));
+    await el.main('no_reset');
+  }
     // 下载 flash-files 清单中的所有文件
     const manifest=fwManifest||await(await fetch('/api/build/'+lastId+'/flash-files')).json();
     const fileArray=[];
@@ -481,7 +492,7 @@ bf.addEventListener('click',async()=>{
       }
     }
   }catch(e){if(e.name==='NotFoundError')show('error',t.cancelled);else show('error',t.flashFailed + e.message)}
-  finally{bf.disabled=false;setPct(0)}
+  finally{window.__k10WebSerialBusy=false;bf.disabled=false;setPct(0)}
 });
 
 bsf.addEventListener('click',async()=>{
