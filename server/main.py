@@ -55,7 +55,7 @@ if os.path.isdir(NPM_DIR):
     app.mount("/npm", StaticFiles(directory=NPM_DIR), name="npm")
 
 _start_time = time.time()
-_compile_semaphore = asyncio.Semaphore(MAX_CONCURRENT_COMPILES)
+_compile_semaphore = threading.Semaphore(MAX_CONCURRENT_COMPILES)
 _waiting_count = 0
 _build_results: dict[str, dict] = {}
 
@@ -683,7 +683,8 @@ async def _submit_compile(project_dir: str, client_ip: str, tmp_dir: str):
 
         async def _task():
             global _waiting_count
-            async with _compile_semaphore:
+            _compile_semaphore.acquire()
+            try:
                 _waiting_count -= 1
                 result["status"] = "compiling"
                 result["progress"] = 10
@@ -747,6 +748,8 @@ async def _submit_compile(project_dir: str, client_ip: str, tmp_dir: str):
                     result["error"] = str(e)
                     result["finished_at"] = time.time()
                     logger.exception(f"build_id={build_id}: 编译异常")
+            finally:
+                _compile_semaphore.release()
 
         loop.run_until_complete(_task())
         loop.close()
