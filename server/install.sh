@@ -59,7 +59,7 @@ if ! command -v pio &>/dev/null; then
   "$PYTHON_BIN" -m pip install platformio -q
 fi
 if ! pio platform show "unihiker" &>/dev/null 2>&1; then
-  pio platform install "https://github.com/DFRobot/UniHiker_K10_Arduino.git"
+  pio platform install "https://github.com/DFRobot/platform-unihiker.git"
 fi
 echo "  PlatformIO & K10 平台已就绪"
 

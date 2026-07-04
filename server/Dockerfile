@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir platformio && \
     pio --version
 
 # Install DFRobot UniHiker K10 platform
-RUN pio platform install "https://github.com/DFRobot/UniHiker_K10_Arduino.git"
+RUN pio platform install "https://github.com/DFRobot/platform-unihiker.git"
 
 # Copy server code
 WORKDIR /app
@@ -35,9 +35,10 @@ EXPOSE 8900
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD curl -sk https://localhost:8900/api/health || curl -s http://localhost:8900/api/health || exit 1
 
-# Default: run without SSL (mount certs and set K10_SSL env to enable HTTPS)
+# Default: run via main.py — it auto-detects SSL certs via env vars
+# Mount cert.pem + key.pem and set K10_SSL_CERT / K10_SSL_KEY to enable HTTPS
 ENV K10_STATIC_DIR=/app/static
 ENV K10_NPM_DIR=/app/npm
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python3", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8900", "--log-level", "info"]
+CMD ["python3", "main.py"]

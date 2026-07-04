@@ -42,5 +42,14 @@ stub_flasher/
 # Keep the skill dirs but not their build artifacts
 k10-compile-server/**/.pio/
 
+# Legacy root-level files (moved to server/)
+/atob-lite.mjs
+/esptool-bundle.mjs
+/esptool-js.mjs
+/pako.mjs
+/*.pem
+/*.crt
+/*.key
+
 # Config
 .claude/

@@ -73,7 +73,7 @@ echo "Files: $(wc -l < "$TMP/files.txt")"
 # Build curl -F args
 CURL_ARGS=()
 while IFS= read -r f; do
-  [ -f "$f" ] && CURL_ARGS+=(-F "files=@$f")
+  [ -f "$f" ] && CURL_ARGS+=(-F "files=@$f;filename=$f")
 done < "$TMP/files.txt"
 
 echo "Submitting compile..."

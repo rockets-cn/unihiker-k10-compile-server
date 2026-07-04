@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     healthcheck:
-      test: ["CMD", "curl", "-sk", "https://localhost:8900/api/health"]
+      test: ["CMD-SHELL", "curl -skf https://localhost:8900/api/health || curl -sf http://localhost:8900/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3

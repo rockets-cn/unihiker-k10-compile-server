@@ -22,20 +22,24 @@ from fastapi import FastAPI, File, UploadFile, Request
 from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+# ── 版本 ──────────────────────────────────────────────────
+VERSION = "3.1.0"
+
 # ── 配置 ──────────────────────────────────────────────────
-HOST = "0.0.0.0"
-PORT = 8900
+HOST = os.getenv("K10_COMPILE_HOST", "0.0.0.0")
+PORT = int(os.getenv("K10_COMPILE_PORT", "8900"))
 UPLOAD_SIZE_LIMIT = 10 * 1024 * 1024
-COMPILE_TIMEOUT = 300
-MAX_CONCURRENT_COMPILES = 2
+COMPILE_TIMEOUT = int(os.getenv("K10_COMPILE_TIMEOUT", "300"))
+MAX_CONCURRENT_COMPILES = int(os.getenv("K10_MAX_CONCURRENT", "2"))
 MAX_LOG_LENGTH = 50000
-BUILD_RESULT_TTL = 300
+BUILD_RESULT_TTL = int(os.getenv("K10_BUILD_TTL", "1800"))
 CLEANUP_INTERVAL = 120
+FLASH_PORT = os.getenv("K10_FLASH_PORT", "")  # e.g. /dev/ttyUSB0
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("k10-compile")
 
-app = FastAPI(title="K10 Compile Server", version="3.1.0")
+app = FastAPI(title="K10 Compile Server", version=VERSION)
 
 # 静态文件（esptool-js 等）
 STATIC_DIR = os.environ.get("K10_STATIC_DIR", os.path.join(os.path.dirname(__file__), "static"))
@@ -534,6 +538,7 @@ async def health():
 
     return {
         "status": "ok",
+        "version": VERSION,
         "pio_version": pio_ver,
         "k10_toolchain_ready": k10_ready,
         "max_concurrent_compiles": MAX_CONCURRENT_COMPILES,
@@ -564,9 +569,15 @@ async def compile_zip(request: Request, file: UploadFile = File(...)):
             f.write(content)
         with zipfile.ZipFile(os.path.join(tmp_dir, "upload.zip"), "r") as zf:
             for info in zf.infolist():
-                if info.filename.startswith("/") or ".." in info.filename:
+                if info.is_dir():
+                    continue
+                # Per-entry path traversal check: resolve and confirm within tmp_dir
+                resolved = os.path.realpath(os.path.join(tmp_dir, info.filename))
+                if not resolved.startswith(os.path.realpath(tmp_dir) + os.sep):
                     return JSONResponse(status_code=400, content={"error": "压缩包包含不安全的路径"})
-            zf.extractall(tmp_dir)
+                os.makedirs(os.path.dirname(resolved), exist_ok=True)
+                with open(resolved, "wb") as out:
+                    out.write(zf.read(info.filename))
 
         project_dir = _find_project_dir(tmp_dir)
         if not project_dir:
@@ -637,25 +648,15 @@ async def compile_files(request: Request, files: list[UploadFile] = File(...)):
                 "hint": "请确保项目文件夹内包含 .cpp 或 .ino 源文件",
             })
 
-        # 5. 检查 partitions.csv：如果 platformio.ini 引用了分区表但文件缺失，自动补一个
+        # 5. 检查 partitions.csv：如果 platformio.ini 引用了分区表但文件缺失，报错
         ini_content = Path(ini_path).read_text()
         needs_partitions = "partitions" in ini_content.lower()
         has_partitions = list(Path(project_dir).glob("partitions.csv"))
         if needs_partitions and not has_partitions:
-            default_partitions = """\
-# Name,     Type, SubType, Offset,   Size,     Flags
-nvs,        data, nvs,     0x9000,   0x5000,
-otadata,    data, ota,     0xe000,   0x2000,
-app0,       app,  ota_0,   0x10000,  0x280000,
-app1,       app,  ota_1,   0x290000, 0x280000,
-model,      data, spiffs,  0x510000, 4563K,
-voice_data, data, fat,     0x985000, 2542K,
-fr,         data, ,        0xC01000, 100K,
-coredump,   data, coredump,,         1K,
-spiffs,     data, spiffs,  0xC1B000, 0x3E5000,
-"""
-            Path(project_dir, "partitions.csv").write_text(default_partitions)
-            logger.info(f"[files] created default partitions.csv in {project_dir}")
+            return JSONResponse(status_code=400, content={
+                "error": "缺少 partitions.csv",
+                "hint": "platformio.ini 引用了分区表，请提供 partitions.csv 文件",
+            })
 
         return await _submit_compile(project_dir, client_ip, tmp_dir)
     except Exception as e:
@@ -857,11 +858,23 @@ async def build_file_download(build_id: str, filename: str):
 
 # ── 服务端烧录（K10 插到服务器上）──
 @app.post("/api/flash/{build_id}")
-async def flash_device(build_id: str):
-    """服务器端烧录（K10 插到服务器上）。"""
+async def flash_device(build_id: str, request: Request):
+    """服务器端烧录（K10 插到服务器上）。
+
+    可选 POST body 参数:
+      - port: 串口设备路径（如 /dev/ttyUSB0），默认自动检测
+    """
     result = _build_results.get(build_id)
     if not result or result["status"] != "done" or not result.get("bin_path"):
         return JSONResponse(status_code=400, content={"error": "编译结果不存在或未完成"})
+
+    # 读取可选的 port 参数
+    port = FLASH_PORT
+    try:
+        body = await request.json()
+        port = body.get("port", port)
+    except Exception:
+        pass
 
     flash_files = result.get("flash_files", {})
     if not flash_files:
@@ -869,18 +882,23 @@ async def flash_device(build_id: str):
 
     logger.info(f"flash {build_id}: 开始烧录（{len(flash_files)} 个文件）")
     try:
-        flash_args = ["python3", "-m", "esptool", "--chip", "esp32s3",
-                       "write_flash", "--compress"]
+        flash_args = ["python3", "-m", "esptool", "--chip", "esp32s3"]
+        if port:
+            flash_args.extend(["--port", port])
+        flash_args.append("write_flash")
+        if len(flash_files) > 1:
+            flash_args.append("--compress")
         for info in flash_files.values():
             if os.path.isfile(info["path"]):
                 flash_args.extend([info["offset"], info["path"]])
 
         if len(flash_args) <= 6:
-            # No extra files found — fallback to single-file at 0x0
             bin_path = result.get("bin_path")
             if bin_path and os.path.isfile(bin_path):
-                flash_args = ["python3", "-m", "esptool", "--chip", "esp32s3",
-                               "write_flash", "0x0", bin_path]
+                flash_args = ["python3", "-m", "esptool", "--chip", "esp32s3"]
+                if port:
+                    flash_args.extend(["--port", port])
+                flash_args.extend(["write_flash", "0x0", bin_path])
             else:
                 return JSONResponse(status_code=500, content={"error": "固件文件不存在"})
 

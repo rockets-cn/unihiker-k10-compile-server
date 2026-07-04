@@ -49,7 +49,7 @@ curl -sk https://localhost:8900/api/health
 部署完成后，用任意客户端脚本测试：
 
 ```bash
-bash scripts/compile-project.sh \
+bash k10-compile-server/scripts/compile-project.sh \
   --server https://localhost:8900 \
   --dir examples/Blink \
   --wait --web-serial
